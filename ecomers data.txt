@@ -1,0 +1,205 @@
+-- Active: 1757520973560@@localhost@3306@my
+CREATE DATABASE ecommerce;
+USE ecommerce;
+
+-- Customers Table
+CREATE TABLE customers (
+    customer_id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(100),
+    email VARCHAR(100) UNIQUE,
+    city VARCHAR(50),
+    created_at DATE
+);
+
+-- Products Table
+CREATE TABLE products (
+    product_id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(100),
+    category VARCHAR(50),
+    price DECIMAL(10,2),
+    in_stock BOOLEAN
+);
+
+-- Orders Table
+CREATE TABLE orders (
+    order_id INT PRIMARY KEY AUTO_INCREMENT,
+    customer_id INT,
+    product_id INT,
+    quantity INT,
+    order_date DATE,
+    status VARCHAR(20),
+    FOREIGN KEY (customer_id) REFERENCES customers(customer_id),
+    FOREIGN KEY (product_id) REFERENCES products(product_id)
+);
+
+-- Reviews Table
+CREATE TABLE reviews (
+    review_id INT PRIMARY KEY AUTO_INCREMENT,
+    product_id INT,
+    customer_id INT,
+    rating INT,
+    comment VARCHAR(255),
+    created_at DATE,
+    FOREIGN KEY (product_id) REFERENCES products(product_id),
+    FOREIGN KEY (customer_id) REFERENCES customers(customer_id)
+);
+
+INSERT INTO customers (name, email, city, created_at) VALUES
+('Raj Patel', 'raj@gmail.com', 'Ahmedabad', '2024-10-01'),
+('Priya Mehta', 'priya@gmail.com', 'Surat', '2024-10-03'),
+('Aman Shah', 'aman@gmail.com', 'Vadodara', '2024-10-05'),
+('Neha Desai', 'neha@gmail.com', 'Ahmedabad', '2024-10-07'),
+('Vikas Jain', 'vikas@gmail.com', 'Rajkot', '2024-10-09');
+
+INSERT INTO products (name, category, price, in_stock) VALUES
+('Running Shoes', 'Footwear', 1200.00, TRUE),
+('Formal Shoes', 'Footwear', 1800.00, TRUE),
+('Sports Watch', 'Accessories', 2500.00, TRUE),
+('T-Shirt', 'Clothing', 800.00, TRUE),
+('Jeans', 'Clothing', 1500.00, TRUE);
+
+INSERT INTO orders (customer_id, product_id, quantity, order_date, status) VALUES
+(1, 1, 2, '2024-10-05', 'Delivered'),
+(2, 2, 1, '2024-10-06', 'Delivered'),
+(3, 3, 1, '2024-10-06', 'Pending'),
+(1, 4, 3, '2024-10-07', 'Delivered'),
+(4, 5, 1, '2024-10-08', 'Delivered'),
+(5, 1, 1, '2024-10-09', 'Delivered'),
+(2, 3, 2, '2024-10-10', 'Delivered');
+
+
+INSERT INTO reviews (product_id, customer_id, rating, comment, created_at) VALUES
+(1, 1, 5, 'Excellent quality', '2024-10-10'),
+(2, 2, 4, 'Very good', '2024-10-11'),
+(3, 3, 3, 'Average product', '2024-10-12'),
+(1, 5, 4, 'Nice shoes', '2024-10-13'),
+(5, 4, 5, 'Perfect fit', '2024-10-14'),
+(4, 1, 4, 'Comfortable', '2024-10-15'),
+(2, 3, 5, 'Great!', '2024-10-16');
+--join quryrs
+SELECT 
+    c.name AS customer_name,
+    p.name AS product_name,
+    o.order_date
+FROM customers c, products p, orders o
+WHERE o.customer_id = c.customer_id
+  AND o.product_id = p.product_id;
+
+SELECT 
+    p.name AS product_name,
+    AVG(r.rating) AS average_rating,
+    COUNT(r.review_id) AS total_reviews
+FROM products p
+LEFT JOIN reviews r 
+    ON p.product_id = r.product_id
+GROUP BY p.product_id, p.name;
+
+--Aggregation Tasks
+SELECT 
+    c.city,
+    COUNT(o.order_id) AS total_orders
+FROM orders o
+JOIN customers c 
+    ON o.customer_id = c.customer_id
+GROUP BY c.city
+ORDER BY total_orders DESC
+LIMIT 3;
+
+SELECT 
+    DISTINCT c.name AS customer_name,
+    p.name AS product_name,
+    r.rating
+FROM reviews r
+JOIN products p 
+    ON r.product_id = p.product_id
+JOIN customers c 
+    ON r.customer_id = c.customer_id
+WHERE p.category = 'Footwear'
+  AND r.rating >= 4;
+
+--Subquery Tasks
+
+SELECT 
+    product_id,
+    AVG(rating) AS avg_rating
+FROM reviews
+GROUP BY product_id;
+
+SELECT 
+    o.order_id,
+    c.name AS customer_name,
+    p.name AS product_name,
+    o.order_date,
+    ar.avg_rating
+FROM orders o
+JOIN customers c ON o.customer_id = c.customer_id
+JOIN products p ON o.product_id = p.product_id
+JOIN (
+    SELECT 
+        product_id,
+        AVG(rating) AS avg_rating
+    FROM reviews
+    GROUP BY product_id
+) ar ON p.product_id = ar.product_id
+WHERE ar.avg_rating >= 4;
+
+--View Tasks
+
+CREATE VIEW customer_order_details AS
+SELECT 
+    c.name AS customer_name,
+    c.email,
+    p.name AS product_name,
+    p.price,
+    o.quantity,
+    o.order_date,
+    c.city
+FROM orders o
+JOIN customers c ON o.customer_id = c.customer_id
+JOIN products p ON o.product_id = p.product_id;
+
+SELECT 
+    customer_name,
+    email,
+    product_name,
+    price,
+    quantity,
+    order_date
+FROM customer_order_details
+WHERE city = 'Ahmedabad';
+
+--Index Tasks
+
+CREATE INDEX idx_price ON products(price);
+SELECT 
+    product_id,
+    name,
+    category,
+    price
+FROM products
+WHERE price BETWEEN 1000 AND 2000;
+
+CREATE INDEX idx_category_price ON products(category, price);
+SELECT 
+    product_id,
+    name,
+    category,
+    price
+FROM products
+WHERE category = 'Footwear'
+ORDER BY price DESC;
+
+
+CREATE INDEX idx_order_date ON orders(order_date);
+SELECT 
+    o.order_id,
+    c.name AS customer_name,
+    p.name AS product_name,
+    o.order_date,
+    o.status
+FROM orders o
+JOIN customers c ON o.customer_id = c.customer_id
+JOIN products p ON o.product_id = p.product_id
+WHERE o.status = 'Delivered'
+ORDER BY o.order_date DESC
+LIMIT 5;
